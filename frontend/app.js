@@ -33,13 +33,19 @@ userInput.addEventListener("keydown", function (e) {
   }
 });
 
-// Auto-scroll helper
-function scrollToBottom() {
+// Scroll optimization via MutationObserver
+const observer = new MutationObserver(() => {
   chatContainer.scrollTo({
     top: chatContainer.scrollHeight,
     behavior: "smooth"
   });
-}
+});
+
+observer.observe(chatContainer, {
+  childList: true,
+  subtree: true,
+  characterData: true
+});
 
 // Generate User Bubble
 function appendUserMessage(text) {
@@ -56,7 +62,6 @@ function appendUserMessage(text) {
   `;
   
   chatContainer.appendChild(wrapper);
-  scrollToBottom();
 }
 
 // Generate Bot Bubble
@@ -80,7 +85,6 @@ function appendBotMessage(markdownText) {
   `;
   
   chatContainer.appendChild(wrapper);
-  scrollToBottom();
 }
 
 // Generate Loading Bubble
@@ -104,7 +108,6 @@ function appendLoadingMessage() {
   `;
   
   chatContainer.appendChild(wrapper);
-  scrollToBottom();
 }
 
 function removeLoadingMessage() {
