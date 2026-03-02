@@ -1,0 +1,161 @@
+// Configuration
+const API_URL = "http://localhost:8787/api/chat";
+
+// DOM Elements
+const chatContainer = document.getElementById("chat-container");
+const chatForm = document.getElementById("chat-form");
+const userInput = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+
+// Marked config
+marked.setOptions({
+  breaks: true,
+  gfm: true,
+});
+
+// Auto-resize textarea
+userInput.addEventListener("input", function () {
+  this.style.height = "auto";
+  this.style.height = (this.scrollHeight) + "px";
+  if (this.value.trim() === "") {
+    this.style.height = "auto"; // Reset if empty
+  }
+});
+
+// Submit on Enter (without shift)
+userInput.addEventListener("keydown", function (e) {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    chatForm.dispatchEvent(new Event("submit"));
+  }
+});
+
+// Auto-scroll helper
+function scrollToBottom() {
+  chatContainer.scrollTo({
+    top: chatContainer.scrollHeight,
+    behavior: "smooth"
+  });
+}
+
+// Generate User Bubble
+function appendUserMessage(text) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "flex items-start justify-end w-full user-msg";
+  
+  wrapper.innerHTML = `
+    <div class="flex flex-col space-y-1 max-w-[85%] items-end">
+      <span class="text-sm text-silver font-medium mr-1 mb-1">You</span>
+      <div class="bg-slate-gray text-frost px-5 py-4 rounded-l-xl rounded-br-xl text-lg leading-relaxed shadow-sm">
+        ${DOMPurify.sanitize(text.replace(/\\n/g, "<br>"))}
+      </div>
+    </div>
+  `;
+  
+  chatContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+
+// Generate Bot Bubble
+function appendBotMessage(markdownText) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "flex items-start w-full";
+  
+  const rawHtml = marked.parse(markdownText);
+  const cleanHtml = DOMPurify.sanitize(rawHtml);
+  
+  wrapper.innerHTML = `
+    <div class="flex-shrink-0 mr-4 mt-1">
+      <img src="assets/logo.png" alt="BeChad" class="h-10 w-10 rounded-md border border-white/10">
+    </div>
+    <div class="flex flex-col space-y-2 max-w-[85%]">
+      <span class="text-sm text-silver font-medium">BeChad</span>
+      <div class="text-frost border-l-4 border-chad-gold pl-5 text-lg leading-relaxed markdown-body">
+        ${cleanHtml}
+      </div>
+    </div>
+  `;
+  
+  chatContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+
+// Generate Loading Bubble
+function appendLoadingMessage() {
+  const wrapper = document.createElement("div");
+  wrapper.className = "flex items-start w-full" ;
+  wrapper.id = "loading-bubble";
+  
+  wrapper.innerHTML = `
+    <div class="flex-shrink-0 mr-4 mt-1 opacity-70">
+      <img src="assets/logo.png" alt="BeChad" class="h-10 w-10 rounded-md border border-white/10 grayscale">
+    </div>
+    <div class="flex flex-col space-y-2 max-w-[85%] justify-center">
+      <span class="text-sm text-silver font-medium">BeChad</span>
+      <div class="flex space-x-1 pl-5 h-8 items-center border-l-4 border-slate-700">
+        <div class="w-2 h-2 bg-silver rounded-full animate-pulse"></div>
+        <div class="w-2 h-2 bg-silver rounded-full animate-pulse" style="animation-delay: 0.2s"></div>
+        <div class="w-2 h-2 bg-silver rounded-full animate-pulse" style="animation-delay: 0.4s"></div>
+      </div>
+    </div>
+  `;
+  
+  chatContainer.appendChild(wrapper);
+  scrollToBottom();
+}
+
+function removeLoadingMessage() {
+  const loading = document.getElementById("loading-bubble");
+  if (loading) {
+    loading.remove();
+  }
+}
+
+// Submit handler
+chatForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  
+  const query = userInput.value.trim();
+  if (!query) return;
+
+  // 1. UI updates: Input clearing and disabling
+  userInput.value = "";
+  userInput.style.height = "auto";
+  userInput.disabled = true;
+  sendBtn.disabled = true;
+
+  // 2. Append user message + loader
+  appendUserMessage(query);
+  appendLoadingMessage();
+
+  // 3. API Request
+  try {
+    const res = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ query })
+    });
+
+    removeLoadingMessage();
+
+    if (!res.ok) {
+      const errorData = await res.json().catch(() => ({}));
+      throw new Error(errorData.error || `Server error (${res.status})`);
+    }
+
+    const data = await res.json();
+    appendBotMessage(data.response);
+
+  } catch (error) {
+    removeLoadingMessage();
+    appendBotMessage(`**Error:** Unable to reach the mentor. \n*${error.message}*`);
+    console.error("Chat error:", error);
+  } finally {
+    // 4. Cleanup
+    userInput.disabled = false;
+    sendBtn.disabled = false;
+    userInput.focus();
+  }
+});
