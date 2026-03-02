@@ -1,0 +1,19 @@
+{
+  "name": "bechad-scripts",
+  "version": "1.0.0",
+  "description": "BeChad data ingestion scripts",
+  "type": "module",
+  "scripts": {
+    "ingest": "node ingest.js",
+    "test-retrieval": "node test-retrieval.js"
+  },
+  "dependencies": {
+    "@langchain/community": "0.3.14",
+    "@langchain/core": "0.3.27",
+    "@langchain/openai": "0.3.14",
+    "@supabase/supabase-js": "^2.45.0",
+    "dotenv": "^16.4.0",
+    "langchain": "0.3.6",
+    "pdf-parse": "^1.1.1"
+  }
+}
