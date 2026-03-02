@@ -1,6 +1,9 @@
 // Configuration
 const API_URL = "http://localhost:8787/api/chat";
 
+// State
+let chatHistory = [];
+
 // DOM Elements
 const chatContainer = document.getElementById("chat-container");
 const chatForm = document.getElementById("chat-form");
@@ -135,7 +138,7 @@ chatForm.addEventListener("submit", async (e) => {
       headers: {
         "Content-Type": "application/json"
       },
-      body: JSON.stringify({ query })
+      body: JSON.stringify({ query, history: chatHistory })
     });
 
     removeLoadingMessage();
@@ -147,6 +150,15 @@ chatForm.addEventListener("submit", async (e) => {
 
     const data = await res.json();
     appendBotMessage(data.response);
+
+    // Update history
+    chatHistory.push({ role: "user", content: query });
+    chatHistory.push({ role: "assistant", content: data.response });
+
+    // Keep history from getting too large (last 10 messages)
+    if (chatHistory.length > 10) {
+      chatHistory = chatHistory.slice(chatHistory.length - 10);
+    }
 
   } catch (error) {
     removeLoadingMessage();

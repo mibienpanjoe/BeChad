@@ -30,7 +30,7 @@ async function handleChat(request, env) {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
-  const { query } = body;
+  const { query, history = [] } = body;
   if (!query || typeof query !== "string" || query.trim().length === 0) {
     return jsonResponse({ error: "Missing or empty 'query' field" }, 400);
   }
@@ -52,8 +52,8 @@ async function handleChat(request, env) {
     });
   }
 
-  // 3. Build prompt with context
-  const messages = buildMessages(chunks, query);
+  // 3. Build prompt with context and history
+  const messages = buildMessages(chunks, query, history);
 
   // 4. Generate response
   const responseText = await generateResponse(messages, env.OPENAI_API_KEY);

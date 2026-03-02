@@ -19,20 +19,34 @@ Guidelines:
  *
  * @param {Array<{content: string, similarity: number}>} chunks - Retrieved document chunks
  * @param {string} query - The user's question
+ * @param {Array<{role: string, content: string}>} [history=[]] - Chat history
  * @returns {Array<{role: string, content: string}>}
  */
-export function buildMessages(chunks, query) {
+export function buildMessages(chunks, query, history = []) {
   const contextText = chunks
     .map((chunk, i) => `[${i + 1}] ${chunk.content}`)
     .join("\n\n");
 
-  return [
+  const messages = [
     {
       role: "system",
       content: SYSTEM_PROMPT,
     },
-    {
-      role: "user",
+  ];
+
+  // Append conversation history
+  for (const msg of history) {
+    if (msg.role && msg.content) {
+      messages.push({
+        role: msg.role === "user" ? "user" : "assistant",
+        content: msg.content
+      });
+    }
+  }
+
+  // Append new user query with context
+  messages.push({
+    role: "user",
       content: `Use the following context from "The Way of the Superior Man" to answer the question. If the context is not sufficient, use your general knowledge but mention that.
 
 --- CONTEXT ---
@@ -40,6 +54,8 @@ ${contextText}
 --- END CONTEXT ---
 
 Question: ${query}`,
-    },
-  ];
+    }
+  );
+
+  return messages;
 }

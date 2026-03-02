@@ -74,13 +74,23 @@ Guidelines:
 - Speak like a mentor \u2014 firm but supportive. Not preachy.
 - Keep responses concise but thorough. No fluff.
 - If the context doesn't cover the question well, say so honestly and give your best guidance.`;
-function buildMessages(chunks, query) {
+function buildMessages(chunks, query, history = []) {
   const contextText = chunks.map((chunk, i) => `[${i + 1}] ${chunk.content}`).join("\n\n");
-  return [
+  const messages = [
     {
       role: "system",
       content: SYSTEM_PROMPT
-    },
+    }
+  ];
+  for (const msg of history) {
+    if (msg.role && msg.content) {
+      messages.push({
+        role: msg.role === "user" ? "user" : "assistant",
+        content: msg.content
+      });
+    }
+  }
+  messages.push(
     {
       role: "user",
       content: `Use the following context from "The Way of the Superior Man" to answer the question. If the context is not sufficient, use your general knowledge but mention that.
@@ -91,7 +101,8 @@ ${contextText}
 
 Question: ${query}`
     }
-  ];
+  );
+  return messages;
 }
 __name(buildMessages, "buildMessages");
 
@@ -142,7 +153,7 @@ async function handleChat(request, env) {
   } catch {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
-  const { query } = body;
+  const { query, history = [] } = body;
   if (!query || typeof query !== "string" || query.trim().length === 0) {
     return jsonResponse({ error: "Missing or empty 'query' field" }, 400);
   }
@@ -157,7 +168,7 @@ async function handleChat(request, env) {
       response: "I couldn't find relevant information for your question. Try rephrasing or asking something else."
     });
   }
-  const messages = buildMessages(chunks, query);
+  const messages = buildMessages(chunks, query, history);
   const responseText = await generateResponse(messages, env.OPENAI_API_KEY);
   return jsonResponse({ response: responseText });
 }
