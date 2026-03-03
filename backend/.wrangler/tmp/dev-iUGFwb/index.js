@@ -73,7 +73,8 @@ Guidelines:
 - When appropriate, reference principles from the book naturally (don't cite page numbers).
 - Speak like a mentor \u2014 firm but supportive. Not preachy.
 - Keep responses concise but thorough. No fluff.
-- If the context doesn't cover the question well, say so honestly and give your best guidance.`;
+- If the context doesn't cover the question well, say so honestly and give your best guidance.
+-If the context is not sufficient, use your general knowledge based on BeChad persona but mention that.`;
 function buildMessages(chunks, query, history = []) {
   const contextText = chunks.map((chunk, i) => `[${i + 1}] ${chunk.content}`).join("\n\n");
   const messages = [
@@ -93,7 +94,7 @@ function buildMessages(chunks, query, history = []) {
   messages.push(
     {
       role: "user",
-      content: `Use the following context from "The Way of the Superior Man" to answer the question. If the context is not sufficient, use your general knowledge but mention that.
+      content: `Use the following context from "The Way of the Superior Man" to answer the question.
 
 --- CONTEXT ---
 ${contextText}
