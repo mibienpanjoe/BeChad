@@ -135,6 +135,7 @@ chatForm.addEventListener("submit", async (e) => {
   appendLoadingMessage();
 
   // 3. API Request
+  const startTime = Date.now();
   try {
     const res = await fetch(API_URL, {
       method: "POST",
@@ -144,14 +145,22 @@ chatForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ query, history: chatHistory })
     });
 
+    const data = await res.json().catch(() => ({}));
+
+    // Ensure loading indicator shows for at least 400ms to allow
+    // the initial smooth scroll animation to finish before we trigger another.
+    const elapsed = Date.now() - startTime;
+    if (elapsed < 400) {
+      await new Promise(r => setTimeout(r, 400 - elapsed));
+    }
+
+    // Perform DOM updates synchronously so MutationObserver batches them into one smooth scroll
     removeLoadingMessage();
 
     if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      throw new Error(errorData.error || `Server error (${res.status})`);
+      throw new Error(data.error || `Server error (${res.status})`);
     }
 
-    const data = await res.json();
     appendBotMessage(data.response);
 
     // Update history
