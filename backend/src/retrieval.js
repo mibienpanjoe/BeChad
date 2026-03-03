@@ -13,8 +13,8 @@ export async function retrieveDocuments(
   queryEmbedding,
   supabaseUrl,
   supabaseKey,
-  matchCount = 5,
-  matchThreshold = 0.5
+  matchCount = 3,
+  matchThreshold = 0.6
 ) {
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_documents`, {
     method: "POST",

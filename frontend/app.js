@@ -33,12 +33,16 @@ userInput.addEventListener("keydown", function (e) {
   }
 });
 
-// Scroll optimization via MutationObserver
+// Scroll optimization via MutationObserver (debounced)
+let scrollTimeout = null;
 const observer = new MutationObserver(() => {
-  chatContainer.scrollTo({
-    top: chatContainer.scrollHeight,
-    behavior: "smooth"
-  });
+  clearTimeout(scrollTimeout);
+  scrollTimeout = setTimeout(() => {
+    chatContainer.scrollTo({
+      top: chatContainer.scrollHeight,
+      behavior: "smooth"
+    });
+  }, 80);
 });
 
 observer.observe(chatContainer, {
@@ -135,7 +139,6 @@ chatForm.addEventListener("submit", async (e) => {
   appendLoadingMessage();
 
   // 3. API Request
-  const startTime = Date.now();
   try {
     const res = await fetch(API_URL, {
       method: "POST",
@@ -147,14 +150,6 @@ chatForm.addEventListener("submit", async (e) => {
 
     const data = await res.json().catch(() => ({}));
 
-    // Ensure loading indicator shows for at least 400ms to allow
-    // the initial smooth scroll animation to finish before we trigger another.
-    const elapsed = Date.now() - startTime;
-    if (elapsed < 400) {
-      await new Promise(r => setTimeout(r, 400 - elapsed));
-    }
-
-    // Perform DOM updates synchronously so MutationObserver batches them into one smooth scroll
     removeLoadingMessage();
 
     if (!res.ok) {

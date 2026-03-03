@@ -4,18 +4,20 @@ import { buildMessages } from "./prompt.js";
 import { generateResponse } from "./generation.js";
 
 // ── CORS Headers ────────────────────────────────────────────────────────────
-const CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type",
-};
+function corsHeaders(env) {
+  return {
+    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+  };
+}
 
-function jsonResponse(data, status = 200) {
+function jsonResponse(data, status = 200, env = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...CORS_HEADERS,
+      ...corsHeaders(env),
     },
   });
 }
@@ -27,13 +29,23 @@ async function handleChat(request, env) {
   try {
     body = await request.json();
   } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
+    return jsonResponse({ error: "Invalid JSON body" }, 400, env);
   }
 
-  const { query, history = [] } = body;
+  const { query, history: rawHistory = [] } = body;
   if (!query || typeof query !== "string" || query.trim().length === 0) {
-    return jsonResponse({ error: "Missing or empty 'query' field" }, 400);
+    return jsonResponse({ error: "Missing or empty 'query' field" }, 400, env);
   }
+  if (query.length > 500) {
+    return jsonResponse({ error: "Query too long (max 500 characters)" }, 400, env);
+  }
+
+  // Sanitize history: cap at 10 messages, validate shape
+  const history = Array.isArray(rawHistory)
+    ? rawHistory
+        .slice(-10)
+        .filter((m) => m.role && typeof m.content === "string")
+    : [];
 
   // 1. Generate embedding for the user query
   const queryEmbedding = await generateEmbedding(query, env.OPENAI_API_KEY);
@@ -46,10 +58,14 @@ async function handleChat(request, env) {
   );
 
   if (!chunks || chunks.length === 0) {
-    return jsonResponse({
-      response:
-        "I couldn't find relevant information for your question. Try rephrasing or asking something else.",
-    });
+    return jsonResponse(
+      {
+        response:
+          "I couldn't find relevant information for your question. Try rephrasing or asking something else.",
+      },
+      200,
+      env
+    );
   }
 
   // 3. Build prompt with context and history
@@ -58,7 +74,7 @@ async function handleChat(request, env) {
   // 4. Generate response
   const responseText = await generateResponse(messages, env.OPENAI_API_KEY);
 
-  return jsonResponse({ response: responseText });
+  return jsonResponse({ response: responseText }, 200, env);
 }
 
 // ── Worker Entry Point ──────────────────────────────────────────────────────
@@ -66,7 +82,7 @@ export default {
   async fetch(request, env) {
     // Handle CORS preflight
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: corsHeaders(env) });
     }
 
     const url = new URL(request.url);
@@ -79,12 +95,13 @@ export default {
         console.error("Chat handler error:", error);
         return jsonResponse(
           { error: "Failed to generate response. Please try again." },
-          500
+          500,
+          env
         );
       }
     }
 
     // 404 for everything else
-    return jsonResponse({ error: "Not found" }, 404);
+    return jsonResponse({ error: "Not found" }, 404, env);
   },
 };

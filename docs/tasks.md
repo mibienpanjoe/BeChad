@@ -26,6 +26,6 @@ Based on the Software Requirements Specification (SRS), here is the current stat
 ## Phase 4 — Integration & Polish
 
 - [x] End-to-end testing
-- [ ] CORS and security hardening
-- [ ] Performance tuning (chunk size, top-K, prompt engineering)
+- [x] CORS and security hardening
+- [x] Performance tuning (chunk size, top-K, prompt engineering)
 - [ ] Final deployment

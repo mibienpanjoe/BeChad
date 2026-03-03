@@ -1,7 +1,7 @@
 var __defProp = Object.defineProperty;
 var __name = (target, value) => __defProp(target, "name", { value, configurable: true });
 
-// .wrangler/tmp/bundle-58FpWm/strip-cf-connecting-ip-header.js
+// .wrangler/tmp/bundle-jbKZ2c/strip-cf-connecting-ip-header.js
 function stripCfConnectingIPHeader(input, init) {
   const request = new Request(input, init);
   request.headers.delete("CF-Connecting-IP");
@@ -39,7 +39,7 @@ async function generateEmbedding(text, apiKey) {
 __name(generateEmbedding, "generateEmbedding");
 
 // src/retrieval.js
-async function retrieveDocuments(queryEmbedding, supabaseUrl, supabaseKey, matchCount = 5, matchThreshold = 0.5) {
+async function retrieveDocuments(queryEmbedding, supabaseUrl, supabaseKey, matchCount = 3, matchThreshold = 0.6) {
   const response = await fetch(`${supabaseUrl}/rest/v1/rpc/match_documents`, {
     method: "POST",
     headers: {
@@ -74,7 +74,8 @@ Guidelines:
 - Speak like a mentor \u2014 firm but supportive. Not preachy.
 - Keep responses concise but thorough. No fluff.
 - If the context doesn't cover the question well, say so honestly and give your best guidance.
--If the context is not sufficient, use your general knowledge based on BeChad persona but mention that.`;
+- If the context is not sufficient, use your general knowledge based on BeChad persona but mention that.
+- Use markdown formatting: bold key terms, use numbered lists for steps, and keep paragraphs short.`;
 function buildMessages(chunks, query, history = []) {
   const contextText = chunks.map((chunk, i) => `[${i + 1}] ${chunk.content}`).join("\n\n");
   const messages = [
@@ -132,17 +133,20 @@ async function generateResponse(messages, apiKey) {
 __name(generateResponse, "generateResponse");
 
 // src/index.js
-var CORS_HEADERS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type"
-};
-function jsonResponse(data, status = 200) {
+function corsHeaders(env) {
+  return {
+    "Access-Control-Allow-Origin": env.ALLOWED_ORIGIN || "*",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type"
+  };
+}
+__name(corsHeaders, "corsHeaders");
+function jsonResponse(data, status = 200, env = {}) {
   return new Response(JSON.stringify(data), {
     status,
     headers: {
       "Content-Type": "application/json",
-      ...CORS_HEADERS
+      ...corsHeaders(env)
     }
   });
 }
@@ -152,12 +156,16 @@ async function handleChat(request, env) {
   try {
     body = await request.json();
   } catch {
-    return jsonResponse({ error: "Invalid JSON body" }, 400);
+    return jsonResponse({ error: "Invalid JSON body" }, 400, env);
   }
-  const { query, history = [] } = body;
+  const { query, history: rawHistory = [] } = body;
   if (!query || typeof query !== "string" || query.trim().length === 0) {
-    return jsonResponse({ error: "Missing or empty 'query' field" }, 400);
+    return jsonResponse({ error: "Missing or empty 'query' field" }, 400, env);
   }
+  if (query.length > 500) {
+    return jsonResponse({ error: "Query too long (max 500 characters)" }, 400, env);
+  }
+  const history = Array.isArray(rawHistory) ? rawHistory.slice(-10).filter((m) => m.role && typeof m.content === "string") : [];
   const queryEmbedding = await generateEmbedding(query, env.OPENAI_API_KEY);
   const chunks = await retrieveDocuments(
     queryEmbedding,
@@ -165,19 +173,23 @@ async function handleChat(request, env) {
     env.SUPABASE_ANON_KEY
   );
   if (!chunks || chunks.length === 0) {
-    return jsonResponse({
-      response: "I couldn't find relevant information for your question. Try rephrasing or asking something else."
-    });
+    return jsonResponse(
+      {
+        response: "I couldn't find relevant information for your question. Try rephrasing or asking something else."
+      },
+      200,
+      env
+    );
   }
   const messages = buildMessages(chunks, query, history);
   const responseText = await generateResponse(messages, env.OPENAI_API_KEY);
-  return jsonResponse({ response: responseText });
+  return jsonResponse({ response: responseText }, 200, env);
 }
 __name(handleChat, "handleChat");
 var src_default = {
   async fetch(request, env) {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: CORS_HEADERS });
+      return new Response(null, { status: 204, headers: corsHeaders(env) });
     }
     const url = new URL(request.url);
     if (url.pathname === "/api/chat" && request.method === "POST") {
@@ -187,11 +199,12 @@ var src_default = {
         console.error("Chat handler error:", error);
         return jsonResponse(
           { error: "Failed to generate response. Please try again." },
-          500
+          500,
+          env
         );
       }
     }
-    return jsonResponse({ error: "Not found" }, 404);
+    return jsonResponse({ error: "Not found" }, 404, env);
   }
 };
 
@@ -236,7 +249,7 @@ var jsonError = /* @__PURE__ */ __name(async (request, env, _ctx, middlewareCtx)
 }, "jsonError");
 var middleware_miniflare3_json_error_default = jsonError;
 
-// .wrangler/tmp/bundle-58FpWm/middleware-insertion-facade.js
+// .wrangler/tmp/bundle-jbKZ2c/middleware-insertion-facade.js
 var __INTERNAL_WRANGLER_MIDDLEWARE__ = [
   middleware_ensure_req_body_drained_default,
   middleware_miniflare3_json_error_default
@@ -268,7 +281,7 @@ function __facade_invoke__(request, env, ctx, dispatch, finalMiddleware) {
 }
 __name(__facade_invoke__, "__facade_invoke__");
 
-// .wrangler/tmp/bundle-58FpWm/middleware-loader.entry.ts
+// .wrangler/tmp/bundle-jbKZ2c/middleware-loader.entry.ts
 var __Facade_ScheduledController__ = class {
   constructor(scheduledTime, cron, noRetry) {
     this.scheduledTime = scheduledTime;
